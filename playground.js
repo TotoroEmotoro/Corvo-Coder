@@ -1,3 +1,11 @@
+/*
+Corvo-Coder Website
+Copyright (c) 2025 Austin (GitHub: TotoroEmotoro)
+Licensed under the Corvo-Coder Website License, Version 1.0.
+See the LICENSE file for full terms.
+*/
+
+
 // playground.js
 
 let pyodideReadyPromise;
