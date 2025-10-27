@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Corvo Playground</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0a0a0a;
+      --panel: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #fafafa;
+      --subtext: #9ca3af;
+      --accent: #3b82f6;
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", Roboto, sans-serif;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      padding: 1rem;
+      width: 100%;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      box-shadow: 0 20px 60px rgb(0 0 0 / 0.6);
+      display: flex;
+      fle
