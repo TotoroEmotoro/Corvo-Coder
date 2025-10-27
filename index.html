@@ -1,16 +1,16 @@
 <!DOCTYPE html>
-<!--
-Corvo-Coder Website
-Copyright (c) 2025 Austin (GitHub: TotoroEmotoro)
-Licensed under the Corvo-Coder Website License, Version 1.0.
-See the LICENSE file for full terms.
--->
-
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Corvo Playground</title>
+
+  <!--
+  Corvo-Coder Website
+  Copyright (c) 2025 Austin (GitHub: TotoroEmotoro)
+  Licensed under the Corvo-Coder Website License, Version 1.0.
+  See the LICENSE file for full terms.
+  -->
 
   <style>
     :root {
@@ -27,8 +27,8 @@ See the LICENSE file for full terms.
       background: var(--bg);
       color: var(--text);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Inter", Roboto, sans-serif;
-      display: flex;
       min-height: 100vh;
+      display: flex;
     }
 
     .container {
@@ -47,4 +47,158 @@ See the LICENSE file for full terms.
       border-radius: 1rem;
       box-shadow: 0 20px 60px rgb(0 0 0 / 0.6);
       display: flex;
-      fle
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-header h2 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .card-header small {
+      color: var(--subtext);
+      font-weight: 400;
+    }
+
+    .run-btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.8rem;
+      font-weight: 500;
+      border-radius: 0.75rem;
+      padding: 0.5rem 0.9rem;
+      cursor: pointer;
+    }
+    .run-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .run-btn:not(:disabled):hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .card-body {
+      flex: 1;
+      min-height: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    textarea.editor {
+      width: 100%;
+      flex: 1;
+      min-height: 300px;
+      resize: none;
+      border: 0;
+      outline: none;
+      padding: 1rem;
+      background: transparent;
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.8rem;
+      line-height: 1.4;
+      tab-size: 2;
+      white-space: pre;
+      overflow: auto;
+    }
+
+    pre.output,
+    pre.generated {
+      margin: 0;
+      padding: 1rem;
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.75rem;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow: auto;
+      flex: 1;
+      min-height: 140px;
+    }
+
+    .split-col {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      min-height: 0;
+    }
+
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+
+    <!-- Left: Corvo editor -->
+    <section class="card">
+      <header class="card-header">
+        <h2>
+          <span>Corvo Code</span>
+          <small>edit me ↓</small>
+        </h2>
+        <button class="run-btn" id="runBtn">Run ▶</button>
+      </header>
+      <div class="card-body">
+        <textarea class="editor" id="corvoInput">print "hello corvo"</textarea>
+      </div>
+    </section>
+
+    <!-- Right: Output + debug -->
+    <section class="split-col">
+      <section class="card">
+        <header class="card-header">
+          <h2>
+            <span>Program Output</span>
+            <small>stdout</small>
+          </h2>
+        </header>
+        <div class="card-body">
+          <pre class="output" id="outputArea">⟵ click Run</pre>
+        </div>
+      </section>
+
+      <section class="card">
+        <header class="card-header">
+          <h2>
+            <span>Debug</span>
+            <small>internal info</small>
+          </h2>
+        </header>
+        <div class="card-body">
+          <pre class="generated" id="debugArea">(parser / AST / errors will land here)</pre>
+        </div>
+      </section>
+    </section>
+
+  </div>
+
+  <!-- Pyodide runtime -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+
+  <!-- Our logic -->
+  <script src="playground.js"></script>
+</body>
+</html>
