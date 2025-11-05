@@ -5,134 +5,154 @@ Licensed under the Corvo-Coder Website License, Version 1.0.
 See the LICENSE file for full terms.
 */
 
-// ===== playground.js =====
+let pyodideReadyPromise = null;
+let initFailed = false;
 
-let pyodideReadyPromise;
+// Pipe any unhandled JS errors to the Debug panel so you can see them
+window.addEventListener("error", (e) => {
+  const dbg = document.getElementById("debugArea");
+  if (dbg) {
+    dbg.textContent =
+      (dbg.textContent ? dbg.textContent + "\n\n" : "") +
+      "[JS Error] " + (e?.error?.stack || e.message || String(e));
+  }
+});
 
 async function initPyodideAndRuntime() {
-  const outputArea = document.getElementById("outputArea");
-  const debugArea = document.getElementById("debugArea");
-  if (outputArea) outputArea.textContent = "Loading Python runtime…";
-  if (debugArea) debugArea.textContent = "Initializing…";
+  const out = document.getElementById("outputArea");
+  const dbg = document.getElementById("debugArea");
 
-  // 1) Load Pyodide
-  const pyodide = await loadPyodide({
-    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/",
-  });
+  try {
+    if (out) out.textContent = "Loading Python runtime…";
+    if (dbg) dbg.textContent = "Initializing…";
 
-  // 2) Install Lark via micropip
-  await pyodide.loadPackage("micropip");
-  await pyodide.runPythonAsync(`
+    // 1) Load Pyodide
+    const pyodide = await loadPyodide({
+      indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/",
+    });
+
+    // 2) Install Lark via micropip
+    await pyodide.loadPackage("micropip");
+    await pyodide.runPythonAsync(`
 import micropip
 await micropip.install("lark")
-  `);
+    `);
 
-  // 3) Fetch Corvo browser runtime from your Corvo repo (RAW URL + cache-bust)
-  const RUNTIME_URL =
-    "https://raw.githubusercontent.com/TotoroEmotoro/Corvo/main/interpreter/browser_runtime.py";
-  let runtimeCode = "";
-  try {
-    const resp = await fetch(`${RUNTIME_URL}?ts=${Date.now()}`, { cache: "no-store" });
-    if (!resp.ok) throw new Error(\`HTTP \${resp.status} while fetching browser_runtime.py\`);
-    runtimeCode = await resp.text();
-  } catch (e) {
-    if (outputArea) outputArea.textContent = "Runtime load error.";
-    if (debugArea) {
-      debugArea.textContent =
-        `Failed to fetch Corvo browser runtime.\n` +
-        `URL: ${RUNTIME_URL}\n` +
-        `Error: ${String(e)}`;
+    // 3) Fetch Corvo browser runtime from Corvo repo (raw URL + cache-bust)
+    const RUNTIME_URL =
+      "https://raw.githubusercontent.com/TotoroEmotoro/Corvo/main/interpreter/browser_runtime.py";
+    let runtimeCode = "";
+    try {
+      const resp = await fetch(`${RUNTIME_URL}?ts=${Date.now()}`, { cache: "no-store" });
+      if (!resp.ok) throw new Error(\`HTTP \${resp.status} fetching browser_runtime.py\`);
+      runtimeCode = await resp.text();
+    } catch (e) {
+      if (out) out.textContent = "Runtime load error.";
+      if (dbg) {
+        dbg.textContent =
+          `Failed to fetch Corvo browser runtime.\n` +
+          `URL: ${RUNTIME_URL}\n` +
+          `Error: ${String(e)}`;
+      }
+      initFailed = true;
+      return pyodide;
     }
-    throw e;
-  }
 
-  // 3a) DIAGNOSTIC: sanity check the content we fetched
-  const snippet = runtimeCode.slice(0, 240);
-  const hasGrammar = runtimeCode.includes("CORVO_GRAMMAR");
-  const hasRunCorvo = runtimeCode.includes("def run_corvo");
-  const hasCorvoInterpreter = runtimeCode.includes("class CorvoInterpreter");
+    // 3a) Diagnostics about fetched file
+    const hasGrammar = runtimeCode.includes("CORVO_GRAMMAR");
+    const hasRunCorvo = runtimeCode.includes("def run_corvo");
+    const hasClass = runtimeCode.includes("class CorvoInterpreter");
+    if (dbg) {
+      const snippet = runtimeCode.slice(0, 240);
+      dbg.textContent =
+        `Fetched browser_runtime.py (${runtimeCode.length} bytes)\n` +
+        `Contains CORVO_GRAMMAR: ${hasGrammar}\n` +
+        `Contains run_corvo(): ${hasRunCorvo}\n` +
+        `Contains CorvoInterpreter: ${hasClass}\n` +
+        `--- First 240 chars ---\n${snippet}\n------------------------`;
+    }
 
-  if (debugArea) {
-    debugArea.textContent =
-      `Fetched browser_runtime.py (${runtimeCode.length} bytes)\n` +
-      `Contains CORVO_GRAMMAR: ${hasGrammar}\n` +
-      `Contains run_corvo(): ${hasRunCorvo}\n` +
-      `Contains CorvoInterpreter: ${hasCorvoInterpreter}\n` +
-      `--- First 240 chars ---\n` +
-      snippet +
-      `\n------------------------`;
-  }
+    // 4) Write & import runtime in Pyodide
+    pyodide.FS.writeFile("corvo_runtime.py", runtimeCode);
 
-  // 4) Write file into Pyodide's FS and import it
-  pyodide.FS.writeFile("corvo_runtime.py", runtimeCode);
-
-  // Force a fresh import each reload
-  const rid = await pyodide.runPythonAsync(`
+    const rid = await pyodide.runPythonAsync(`
 import importlib, sys
 if "corvo_runtime" in sys.modules:
     del sys.modules["corvo_runtime"]
 corvo_module = importlib.import_module("corvo_runtime")
 getattr(corvo_module, "RUNTIME_ID", "CorvoBrowserRuntime (no RUNTIME_ID in file)")
-  `);
+    `);
 
-  if (debugArea) {
-    debugArea.textContent =
-      (debugArea.textContent ? debugArea.textContent + "\n\n" : "") +
-      `Runtime ID: ${rid}\nLoaded runtime successfully.`;
+    if (dbg) {
+      dbg.textContent =
+        (dbg.textContent ? dbg.textContent + "\n\n" : "") +
+        `Runtime ID: ${rid}\nLoaded runtime successfully.`;
+    }
+    if (out) out.textContent = "Ready.";
+
+    return pyodide;
+  } catch (err) {
+    initFailed = true;
+    if (out) out.textContent = "Init error.";
+    if (dbg) {
+      dbg.textContent =
+        (dbg.textContent ? dbg.textContent + "\n\n" : "") +
+        "[Init Failure]\n" + String(err);
+    }
+    return null;
   }
-  if (outputArea) outputArea.textContent = "Ready.";
-
-  return pyodide;
 }
 
-// start loading immediately
-pyodideReadyPromise = initPyodideAndRuntime();
-
-window.addEventListener("DOMContentLoaded", () => {
+async function runProgram() {
   const runBtn = document.getElementById("runBtn");
   const inputEl = document.getElementById("corvoInput");
-  const outputArea = document.getElementById("outputArea");
-  const debugArea = document.getElementById("debugArea");
+  const out = document.getElementById("outputArea");
+  const dbg = document.getElementById("debugArea");
 
-  // Disable Run until runtime ready
   if (runBtn) runBtn.disabled = true;
-  (async () => {
-    try { await pyodideReadyPromise; } finally { if (runBtn) runBtn.disabled = false; }
-  })();
+  if (out) out.textContent = "Running…";
 
-  async function handleRun() {
-    if (!runBtn) return;
-    runBtn.disabled = true;
-    if (outputArea) outputArea.textContent = "Running…";
-    if (debugArea) debugArea.textContent = (debugArea.textContent || "");
+  try {
+    const pyodide = await pyodideReadyPromise;
+    if (!pyodide || initFailed) {
+      if (out) out.textContent = "Runtime not ready (see Debug).";
+      return;
+    }
 
-    try {
-      const pyodide = await pyodideReadyPromise;
+    // Strip full-line '#' comments (resilience, even though grammar should ignore them)
+    const userCode = inputEl ? inputEl.value : "";
+    const sanitized = userCode.replace(/^[ \t]*#.*$/gm, "");
+    pyodide.globals.set("___source", sanitized);
 
-      // Strip full-line '#' comments for resilience
-      const userCode = inputEl ? inputEl.value : "";
-      const sanitized = userCode.replace(/^[ \t]*#.*$/gm, "");
-      pyodide.globals.set("___source", sanitized);
-
-      // Call run_corvo from the fetched runtime
-      const [resultStr, debugStr] = await pyodide.runPythonAsync(`
+    // Execute via run_corvo() from corvo_runtime
+    const [resultStr, debugStr] = await pyodide.runPythonAsync(`
 out, dbg = corvo_module.run_corvo(___source)
 (out, dbg)
-      `);
+    `);
 
-      if (outputArea) outputArea.textContent = resultStr || "(no output)";
-      if (debugArea) {
-        const existing = debugArea.textContent ? debugArea.textContent + "\n\n" : "";
-        debugArea.textContent = existing + (debugStr || "(no debug)");
-      }
-    } catch (err) {
-      if (outputArea) outputArea.textContent = "Runtime error.";
-      if (debugArea) debugArea.textContent =
-        (debugArea.textContent ? debugArea.textContent + "\n\n" : "") + String(err);
-    } finally {
-      runBtn.disabled = false;
+    if (out) out.textContent = resultStr || "(no output)";
+    if (dbg) {
+      const existing = dbg.textContent ? dbg.textContent + "\n\n" : "";
+      dbg.textContent = existing + (debugStr || "(no debug)");
     }
+  } catch (err) {
+    if (out) out.textContent = "Runtime error.";
+    const dbg = document.getElementById("debugArea");
+    if (dbg) {
+      dbg.textContent =
+        (dbg.textContent ? dbg.textContent + "\n\n" : "") + String(err);
+    }
+  } finally {
+    if (runBtn) runBtn.disabled = false;
   }
+}
 
-  if (runBtn) runBtn.addEventListener("click", handleRun);
+// Wire up once DOM is ready
+window.addEventListener("DOMContentLoaded", () => {
+  // Always attach the handler (even if init fails; it will report why)
+  const runBtn = document.getElementById("runBtn");
+  if (runBtn) runBtn.addEventListener("click", runProgram);
+
+  // Start init after DOM is ready
+  pyodideReadyPromise = initPyodideAndRuntime();
 });
