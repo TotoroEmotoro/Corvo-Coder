@@ -10,63 +10,82 @@ See the LICENSE file for full terms.
 let pyodideReadyPromise;
 
 async function initPyodideAndRuntime() {
-  // 0) Small status helper (optional)
   const outputArea = document.getElementById("outputArea");
   const debugArea = document.getElementById("debugArea");
   if (outputArea) outputArea.textContent = "Loading Python runtime…";
-  if (debugArea) debugArea.textContent = "";
+  if (debugArea) debugArea.textContent = "Initializing…";
 
-  // 1) Load Pyodide (Python-in-browser)
+  // 1) Load Pyodide
   const pyodide = await loadPyodide({
     indexURL: "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/",
   });
 
-  // 2) Install pure-Python deps (Lark) via micropip
+  // 2) Install Lark via micropip
   await pyodide.loadPackage("micropip");
   await pyodide.runPythonAsync(`
 import micropip
 await micropip.install("lark")
   `);
 
-  // 3) Fetch Corvo browser runtime from your Corvo repo (raw file)
-  //    TIP: If you tag releases, you can pin to a tag instead of 'main'.
-  const RUNTIME_URL = "https://raw.githubusercontent.com/TotoroEmotoro/Corvo/main/interpreter/browser_runtime.py";
+  // 3) Fetch Corvo browser runtime from your Corvo repo (RAW URL + cache-bust)
+  const RUNTIME_URL =
+    "https://raw.githubusercontent.com/TotoroEmotoro/Corvo/main/interpreter/browser_runtime.py";
   let runtimeCode = "";
   try {
     const resp = await fetch(`${RUNTIME_URL}?ts=${Date.now()}`, { cache: "no-store" });
-    if (!resp.ok) {
-      throw new Error(`HTTP ${resp.status} while fetching browser_runtime.py`);
-    }
+    if (!resp.ok) throw new Error(\`HTTP \${resp.status} while fetching browser_runtime.py\`);
     runtimeCode = await resp.text();
   } catch (e) {
-    // Surface the error in the UI so it's obvious
     if (outputArea) outputArea.textContent = "Runtime load error.";
-    if (debugArea) debugArea.textContent = `Failed to fetch Corvo browser runtime:\n${String(e)}\nURL: ${RUNTIME_URL}`;
+    if (debugArea) {
+      debugArea.textContent =
+        `Failed to fetch Corvo browser runtime.\n` +
+        `URL: ${RUNTIME_URL}\n` +
+        `Error: ${String(e)}`;
+    }
     throw e;
   }
 
-  // 4) Write the runtime into Pyodide's in-memory FS and import it
+  // 3a) DIAGNOSTIC: sanity check the content we fetched
+  const snippet = runtimeCode.slice(0, 240);
+  const hasGrammar = runtimeCode.includes("CORVO_GRAMMAR");
+  const hasRunCorvo = runtimeCode.includes("def run_corvo");
+  const hasCorvoInterpreter = runtimeCode.includes("class CorvoInterpreter");
+
+  if (debugArea) {
+    debugArea.textContent =
+      `Fetched browser_runtime.py (${runtimeCode.length} bytes)\n` +
+      `Contains CORVO_GRAMMAR: ${hasGrammar}\n` +
+      `Contains run_corvo(): ${hasRunCorvo}\n` +
+      `Contains CorvoInterpreter: ${hasCorvoInterpreter}\n` +
+      `--- First 240 chars ---\n` +
+      snippet +
+      `\n------------------------`;
+  }
+
+  // 4) Write file into Pyodide's FS and import it
   pyodide.FS.writeFile("corvo_runtime.py", runtimeCode);
 
-  await pyodide.runPythonAsync(`
+  // Force a fresh import each reload
+  const rid = await pyodide.runPythonAsync(`
 import importlib, sys
-# Force a clean import in case of hot reloads
 if "corvo_runtime" in sys.modules:
     del sys.modules["corvo_runtime"]
 corvo_module = importlib.import_module("corvo_runtime")
-# Expose a runtime identifier if present, else a fallback
-RUNTIME_ID = getattr(corvo_module, "RUNTIME_ID", "CorvoBrowserRuntime (no RUNTIME_ID)")
-RUNTIME_ID
-  `).then((rid) => {
-    if (debugArea) debugArea.textContent = `${rid}\nLoaded runtime successfully.`;
-  });
+getattr(corvo_module, "RUNTIME_ID", "CorvoBrowserRuntime (no RUNTIME_ID in file)")
+  `);
 
+  if (debugArea) {
+    debugArea.textContent =
+      (debugArea.textContent ? debugArea.textContent + "\n\n" : "") +
+      `Runtime ID: ${rid}\nLoaded runtime successfully.`;
+  }
   if (outputArea) outputArea.textContent = "Ready.";
 
   return pyodide;
 }
 
-// Start loading Pyodide + runtime immediately
+// start loading immediately
 pyodideReadyPromise = initPyodideAndRuntime();
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -75,31 +94,27 @@ window.addEventListener("DOMContentLoaded", () => {
   const outputArea = document.getElementById("outputArea");
   const debugArea = document.getElementById("debugArea");
 
-  // Optional: disable Run until runtime is ready
+  // Disable Run until runtime ready
   if (runBtn) runBtn.disabled = true;
   (async () => {
-    try {
-      await pyodideReadyPromise;
-    } finally {
-      if (runBtn) runBtn.disabled = false;
-    }
+    try { await pyodideReadyPromise; } finally { if (runBtn) runBtn.disabled = false; }
   })();
 
   async function handleRun() {
     if (!runBtn) return;
     runBtn.disabled = true;
     if (outputArea) outputArea.textContent = "Running…";
-    if (debugArea) debugArea.textContent = "";
+    if (debugArea) debugArea.textContent = (debugArea.textContent || "");
 
     try {
       const pyodide = await pyodideReadyPromise;
 
-      // --- IMPORTANT: strip full-line '#' comments for resilience ---
+      // Strip full-line '#' comments for resilience
       const userCode = inputEl ? inputEl.value : "";
       const sanitized = userCode.replace(/^[ \t]*#.*$/gm, "");
       pyodide.globals.set("___source", sanitized);
 
-      // Call run_corvo() from the loaded corvo_runtime
+      // Call run_corvo from the fetched runtime
       const [resultStr, debugStr] = await pyodide.runPythonAsync(`
 out, dbg = corvo_module.run_corvo(___source)
 (out, dbg)
@@ -107,13 +122,13 @@ out, dbg = corvo_module.run_corvo(___source)
 
       if (outputArea) outputArea.textContent = resultStr || "(no output)";
       if (debugArea) {
-        // Keep any existing runtime ID banner we set earlier; append debug
         const existing = debugArea.textContent ? debugArea.textContent + "\n\n" : "";
         debugArea.textContent = existing + (debugStr || "(no debug)");
       }
     } catch (err) {
       if (outputArea) outputArea.textContent = "Runtime error.";
-      if (debugArea) debugArea.textContent = String(err);
+      if (debugArea) debugArea.textContent =
+        (debugArea.textContent ? debugArea.textContent + "\n\n" : "") + String(err);
     } finally {
       runBtn.disabled = false;
     }
