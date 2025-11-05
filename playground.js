@@ -38,25 +38,33 @@ import micropip
 await micropip.install("lark")
     `);
 
-    // 3) Fetch Corvo browser runtime from Corvo repo (raw URL + cache-bust)
-    const RUNTIME_URL =
-      "https://raw.githubusercontent.com/TotoroEmotoro/Corvo/main/interpreter/browser_runtime.py";
-    let runtimeCode = "";
-    try {
-      const resp = await fetch(`${RUNTIME_URL}?ts=${Date.now()}`, { cache: "no-store" });
-      if (!resp.ok) throw new Error(\`HTTP \${resp.status} fetching browser_runtime.py\`);
-      runtimeCode = await resp.text();
-    } catch (e) {
-      if (out) out.textContent = "Runtime load error.";
-      if (dbg) {
-        dbg.textContent =
-          `Failed to fetch Corvo browser runtime.\n` +
-          `URL: ${RUNTIME_URL}\n` +
-          `Error: ${String(e)}`;
-      }
-      initFailed = true;
-      return pyodide;
-    }
+    // 3) Fetch Corvo browser runtime from your Corvo repo
+const RUNTIME_URL =
+  "https://raw.githubusercontent.com/TotoroEmotoro/Corvo/main/interpreter/browser_runtime.py";
+let runtimeCode = "";
+
+try {
+  console.log("Fetching Corvo runtime from", RUNTIME_URL);
+  const resp = await fetch(`${RUNTIME_URL}?ts=${Date.now()}`, { cache: "no-store" });
+  console.log("Response status:", resp.status);
+  if (!resp.ok) {
+    throw new Error("HTTP " + resp.status + " fetching browser_runtime.py");
+  }
+  runtimeCode = await resp.text();
+  console.log("Fetched", runtimeCode.length, "bytes of runtime code.");
+} catch (e) {
+  if (outputArea) outputArea.textContent = "Runtime load error.";
+  if (debugArea) {
+    debugArea.textContent =
+      "Failed to fetch Corvo browser runtime.\n" +
+      "URL: " + RUNTIME_URL + "\n" +
+      "Error: " + String(e) + "\n(Check console for details)";
+  }
+  console.error("Runtime load failed:", e);
+  initFailed = true;
+  return pyodide;
+}
+
 
     // 3a) Diagnostics about fetched file
     const hasGrammar = runtimeCode.includes("CORVO_GRAMMAR");
