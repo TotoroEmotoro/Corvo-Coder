@@ -157,6 +157,9 @@ See the LICENSE file for full terms.
   </style>
 </head>
 
+</body>
+</html>
+
 <body>
   <div class="container">
 
@@ -206,10 +209,10 @@ See the LICENSE file for full terms.
 
   </div>
 
-  <!-- Pyodide runtime -->
-  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<!-- Pyodide runtime -->
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
 
-  <!-- Our logic -->
-  <script src="playground.js"></script>
+<!-- Our logic (defer not needed if it's at the end, but harmless) -->
+<script src="playground.js" defer></script>
 </body>
 </html>
