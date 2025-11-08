@@ -157,16 +157,18 @@ window.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => (el("status").textContent = "Ready"), 1400);
   });
   el("loadExample")?.addEventListener("click", () => {
-    el("corvoInput").value =
-`# Condition-controlled loop example
-the x is 15
-the y is 0
-while x is greater than 0 do: [
-  the y is y plus 1
-  the x is x minus y
+  el("corvoInput").value =
+`# Summing numbers until total exceeds 15
+the total is 0
+the n is 1
+while total is less than 15 do: [
+  display "Adding " plus n
+  the total is total plus n
+  the n is n plus 1
 ]
-display y`;
-  });
+display "Final total: " plus total`;
+});
+
   el("toggleDebug")?.addEventListener("click", () => {
     const panel = el("debugPanel");
     if (panel.classList.contains("hidden")){
