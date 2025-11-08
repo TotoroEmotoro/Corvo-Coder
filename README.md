@@ -1,6 +1,6 @@
 # Corvo-Coder Playground
 
-An interactive in-browser playground for the [Corvo programming language](https://github.com/TotoroEmotoro/Corvo).
+An interactive in-browser editor for the [Corvo programming language](https://github.com/TotoroEmotoro/Corvo).
 
 This web app lets users write, run, and explore Corvo code directly in their browser using Pyodide.  
 It is the official online companion to the Corvo language repository.
