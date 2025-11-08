@@ -38,7 +38,7 @@ while total is less than 15 do: [
   the n is n plus 1
 ]
 display "Final total: " plus total
-
+```
 
 ## Licence
 
