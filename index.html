@@ -113,8 +113,7 @@ See the LICENSE file for full terms.
   <!-- Header -->
   <header class="appbar">
     <div class="logo-wrap" aria-hidden="true">
-      <!-- Put your logo image in the repo root as corvo-logo.png (or change the src) -->
-      <img src="corvo-logo.png" alt="Corvo logo">
+     <img src="corvo-logo.png" alt="Corvo logo">
     </div>
     <div class="brand">
       <h1>Corvo Playground</h1>
@@ -216,7 +215,7 @@ display z</textarea>
         <div class="actions">
           <button id="runBtn" class="btn accent">Run ▶</button>
           <button id="clearBtn" class="btn ghost">Clear output</button>
-          <button id="shareBtn" class="btn ghost">Share link</button>
+          <button id="downloadBtn" class="btn ghost">Save Code</button>
           <span id="status" style="margin-left:auto;color:var(--muted);font-size:12px;">Initialising…</span>
         </div>
       </section>
@@ -246,6 +245,30 @@ display z</textarea>
   <!-- Pyodide then our app logic -->
   <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
   <script src="playground.js"></script>
+
+  <script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const downloadBtn = document.getElementById("downloadBtn");
+    const editor = document.getElementById("corvoInput");
+
+    if (!downloadBtn || !editor) return;
+
+    downloadBtn.addEventListener("click", () => {
+      const code = editor.value || "";
+      const blob = new Blob([code], { type: "text/plain;charset=utf-8" });
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "corvo_program_code.txt";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+  });
+</script>
+
 
  <footer style="
     text-align:center;
