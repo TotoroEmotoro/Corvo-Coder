@@ -1,4 +1,4 @@
-# Corvo-Coder Playground
+# Corvo-Coder Online Editor
 
 An interactive in-browser editor for the [Corvo programming language](https://github.com/TotoroEmotoro/Corvo).
 
